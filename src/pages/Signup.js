@@ -19,19 +19,21 @@ const Signup = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     try {
-      // Make a POST request to the backend
       const response = await fetch("http://localhost:5000/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
 
+      const result = await response.json();
+
       if (response.ok) {
-        alert("Account created successfully! Please log in.");
+        alert(result.message);
         navigate("/"); // Redirect to Login page
       } else {
-        alert("Error creating account. Please try again.");
+        alert(result.message || "Error creating account. Please try again.");
       }
     } catch (error) {
       console.error("Error creating account:", error);

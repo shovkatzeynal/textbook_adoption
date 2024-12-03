@@ -8,3 +8,7 @@ const db = mysql.createPool({
 });
 
 module.exports = db;
+
+db.getConnection()
+  .then(() => console.log("Connected to database"))
+  .catch((err) => console.error("Database connection error:", err));
