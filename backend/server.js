@@ -1,11 +1,14 @@
-const express = require("express");
-const bcrypt = require("bcrypt");
-const cors = require("cors");
-const db = require("./db");
+const express = require("express"); // Import Express
+const bcrypt = require("bcrypt"); // Import bcrypt for password hashing
+const cors = require("cors"); // Import CORS middleware
+const db = require("./db"); // Import the database connection
 
+// Initialize the app
 const app = express();
-app.use(express.json());
-app.use(cors()); // Enable CORS for frontend-backend communication
+
+// Middleware
+app.use(express.json()); // Parse JSON requests
+app.use(cors()); // Allow cross-origin requests
 
 // Signup Route
 app.post("/api/signup", async (req, res) => {
@@ -15,7 +18,7 @@ app.post("/api/signup", async (req, res) => {
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Insert user into database
+    // Insert the user into the database
     const query = `
       INSERT INTO users (first_name, last_name, email, phone, role, password_hash)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -37,20 +40,26 @@ app.post("/api/signup", async (req, res) => {
 // Login Route
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body;
+  console.log("Received login request for email:", email); // Debugging log
 
   try {
-    // Check if the user exists in the database
+    // Query the database for the user
     const query = "SELECT * FROM users WHERE email = ?";
     const [rows] = await db.execute(query, [email]);
+    console.log("Database query result:", rows); // Debugging log
 
     if (rows.length === 0) {
+      console.log("User not found in database."); // Debugging log
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
     const user = rows[0];
+    console.log("User from database:", user); // Debugging log
 
     // Compare the provided password with the stored hash
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+    console.log("Password validation result:", isPasswordValid); // Debugging log
+
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
@@ -64,9 +73,4 @@ app.post("/api/login", async (req, res) => {
     console.error("Error during login:", error);
     res.status(500).json({ message: "Server error. Please try again later." });
   }
-});
-
-// Start the server
-app.listen(5009, () => {
-  console.log("Server is running on http://localhost:5009");
 });

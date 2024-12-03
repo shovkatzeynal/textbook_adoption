@@ -24,13 +24,13 @@ const Signup = () => {
       const response = await fetch("http://localhost:5009/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(formData), // Send form data to backend
       });
 
       const result = await response.json();
 
       if (response.ok) {
-        alert(result.message);
+        alert(result.message); // Show success message
         navigate("/"); // Redirect to Login page
       } else {
         alert(result.message || "Error creating account. Please try again.");
