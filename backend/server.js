@@ -1,9 +1,11 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
-const db = require("./db"); // Ensure db.js is correctly configured
+const cors = require("cors");
+const db = require("./db");
 
 const app = express();
 app.use(express.json());
+app.use(cors()); // Enable CORS for frontend-backend communication
 
 // Signup Route
 app.post("/api/signup", async (req, res) => {
@@ -32,7 +34,39 @@ app.post("/api/signup", async (req, res) => {
   }
 });
 
+// Login Route
+app.post("/api/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    // Check if the user exists in the database
+    const query = "SELECT * FROM users WHERE email = ?";
+    const [rows] = await db.execute(query, [email]);
+
+    if (rows.length === 0) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    const user = rows[0];
+
+    // Compare the provided password with the stored hash
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    // If login is successful, return user details
+    res.status(200).json({
+      message: "Login successful",
+      role: user.role,
+    });
+  } catch (error) {
+    console.error("Error during login:", error);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+});
+
 // Start the server
-app.listen(5000, () => {
-  console.log("Server is running on http://localhost:5000");
+app.listen(5009, () => {
+  console.log("Server is running on http://localhost:5009");
 });

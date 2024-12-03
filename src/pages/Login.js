@@ -6,21 +6,28 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
-  const mockUsers = [
-    { email: "instructor@example.com", role: "Instructor" },
-    { email: "hod@example.com", role: "HoD" },
-    { email: "bookstore@example.com", role: "Bookstore" },
-  ];
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const user = mockUsers.find((u) => u.email === email);
-    if (user) {
-      if (user.role === "Instructor") navigate("/instructor");
-      else if (user.role === "HoD") navigate("/hod");
-      else if (user.role === "Bookstore") navigate("/bookstore");
-    } else {
-      alert("Invalid email or password");
+
+    try {
+      const response = await fetch("http://localhost:5009/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        if (result.role === "Instructor") navigate("/instructor");
+        else if (result.role === "HoD") navigate("/hod");
+        else if (result.role === "Bookstore") navigate("/bookstore");
+      } else {
+        alert(result.message || "Invalid email or password");
+      }
+    } catch (error) {
+      console.error("Error during login:", error);
+      alert("An error occurred. Please try again later.");
     }
   };
 
@@ -49,7 +56,6 @@ const Login = () => {
       </form>
     </div>
   );
-  
 };
 
 export default Login;
