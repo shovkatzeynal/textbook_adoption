@@ -1,10 +1,10 @@
-const mysql = require("mysql2");
+const mysql = require("mysql2/promise");
 
-const pool = mysql.createPool({
+const db = mysql.createPool({
   host: "localhost",
-  user: "root",
-  password: "password", // Change as per your setup
-  database: "textbook_adopt_mvsu",
+  user: "root", // Update with your MySQL username
+  password: "Zeynalli...2000", // Update with your MySQL password
+  database: "textbook_adopt_mvsu", // Ensure this matches your schema name
 });
 
-module.exports = pool.promise();
+module.exports = db;
