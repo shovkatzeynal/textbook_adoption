@@ -3,7 +3,6 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const cors = require("cors");
 const db = require("./db");
-const rateLimit = require("express-rate-limit");
 
 // Initialize the app
 const app = express();
@@ -11,13 +10,6 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(cors());
-
-// Rate limiting middleware
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-});
-app.use(limiter);
 
 // Start the server
 const PORT = process.env.PORT || 5009;
@@ -51,7 +43,6 @@ app.post("/api/signup", async (req, res) => {
 });
 
 // Login Route
-// Login Route
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body;
   console.log("Received login request for email:", email);
@@ -73,10 +64,9 @@ app.post("/api/login", async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    // Include userId in the response
     res.status(200).json({
       message: "Login successful",
-      userId: user.user_id, // Include user_id in the response
+      userId: user.user_id,
       role: user.role,
     });
   } catch (error) {
@@ -91,7 +81,7 @@ app.get("/api/courses", async (req, res) => {
 
   try {
     const query = `
-      SELECT course_number, course_name, term
+      SELECT course_id, course_number, course_name, term
       FROM courses
       WHERE instructor_id = ?
     `;
@@ -107,3 +97,72 @@ app.get("/api/courses", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch courses." });
   }
 });
+
+// Fetch existing textbooks for a course
+app.get("/api/textbooks/:courseId", async (req, res) => {
+  const courseId = req.params.courseId;
+
+  try {
+    const query = `
+      SELECT * FROM textbooks
+      WHERE course_id = ?
+    `;
+    const [rows] = await db.execute(query, [courseId]);
+
+    if (rows.length === 0) {
+      return res.status(200).json({ message: "No textbooks found for this course." });
+    }
+
+    res.status(200).json({ textbooks: rows });
+  } catch (error) {
+    console.error("Error fetching textbooks:", error);
+    res.status(500).json({ message: "Failed to fetch textbooks." });
+  }
+});
+
+// Create or reuse a textbook adoption form
+app.post("/api/textbooks", async (req, res) => {
+  const { courseId, publisher, title, author, isbn, edition, quantity, otherMaterials } = req.body;
+
+  try {
+    const query = `
+      INSERT INTO textbooks (course_id, publisher, title, author, isbn, edition, quantity, other_materials)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    await db.execute(query, [courseId, publisher, title, author, isbn, edition, quantity, otherMaterials]);
+
+    res.status(201).json({ message: "Textbook form created successfully!" });
+  } catch (error) {
+    console.error("Error creating textbook form:", error);
+    res.status(500).json({ message: "Failed to create textbook form. Please try again later." });
+  }
+});
+
+// Fetch textbook for a specific course
+// Fetch textbook and course details for a specific course
+app.get("/api/textbooks/:courseId", async (req, res) => {
+  const courseId = req.params.courseId;
+
+  try {
+    const query = `
+      SELECT 
+        c.course_id, c.course_number, c.course_name, c.term, 
+        t.publisher, t.title, t.author, t.isbn, t.edition, t.quantity, t.other_materials
+      FROM courses c
+      LEFT JOIN textbooks t ON c.course_id = t.course_id
+      WHERE c.course_id = ?
+    `;
+    const [rows] = await db.execute(query, [courseId]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "No course or textbook data found." });
+    }
+
+    res.status(200).json({ course: rows[0] });
+  } catch (error) {
+    console.error("Error fetching course and textbook details:", error);
+    res.status(500).json({ message: "Failed to fetch course and textbook details." });
+  }
+});
+
+
