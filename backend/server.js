@@ -139,7 +139,6 @@ app.post("/api/textbooks", async (req, res) => {
 });
 
 // Fetch textbook for a specific course
-// Fetch textbook and course details for a specific course
 app.get("/api/textbooks/:courseId", async (req, res) => {
   const courseId = req.params.courseId;
 
@@ -158,11 +157,27 @@ app.get("/api/textbooks/:courseId", async (req, res) => {
       return res.status(404).json({ message: "No course or textbook data found." });
     }
 
-    res.status(200).json({ course: rows[0] });
+    // Safeguard missing fields with defaults
+    const data = {
+      course_id: rows[0].course_id,
+      course_number: rows[0].course_number || "",
+      course_name: rows[0].course_name || "",
+      term: rows[0].term || "Unknown Term", // Default to prevent errors
+      publisher: rows[0].publisher || "",
+      title: rows[0].title || "",
+      author: rows[0].author || "",
+      isbn: rows[0].isbn || "",
+      edition: rows[0].edition || "",
+      quantity: rows[0].quantity || 1,
+      other_materials: rows[0].other_materials || "",
+    };
+
+    res.status(200).json({ course: data });
   } catch (error) {
     console.error("Error fetching course and textbook details:", error);
     res.status(500).json({ message: "Failed to fetch course and textbook details." });
   }
 });
+
 
 

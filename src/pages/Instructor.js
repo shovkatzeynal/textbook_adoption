@@ -1,11 +1,23 @@
 import React, { useEffect, useState } from "react";
 
-const Instructor = () => {
+const InstructorPage = () => {
   const [courses, setCourses] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [formData, setFormData] = useState({
+    term: "",
+    date: "",
+    courseId: "",
+    courseName: "",
+    publisher: "",
+    title: "",
+    author: "",
+    isbn: "",
+    edition: "",
+    quantity: "",
+    otherMaterials: "",
+  });
   const [error, setError] = useState("");
-  const [formCourse, setFormCourse] = useState(null); // Track the course for which the form is being created
-  const [formData, setFormData] = useState({}); // Store form data
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -18,14 +30,14 @@ const Instructor = () => {
 
       try {
         const response = await fetch(`http://localhost:5009/api/courses?userId=${userId}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch courses.");
-        }
-
         const data = await response.json();
-        setCourses(data.courses || []);
+        if (response.ok && data.courses) {
+          setCourses(data.courses);
+        } else {
+          setError(data.message || "Failed to fetch courses.");
+        }
       } catch (err) {
-        setError(err.message || "Network error. Please try again later.");
+        setError(err.message || "Network error.");
       } finally {
         setLoading(false);
       }
@@ -34,157 +46,170 @@ const Instructor = () => {
     fetchCourses();
   }, []);
 
-  const handleCreateForm = async (course) => {
-    setFormCourse(course); // Set the course for which the form is being created
+  const handleFetchTextbook = async (course) => {
+    setSelectedCourse(course);
+    const { course_id, course_name, term } = course;
+
+    // Pre-fill term, date, courseId, and courseName
+    const today = new Date().toISOString().split("T")[0];
+    setFormData((prev) => ({
+      ...prev,
+      term,
+      date: today,
+      courseId: course_id,
+      courseName: course_name,
+      publisher: "",
+      title: "",
+      author: "",
+      isbn: "",
+      edition: "",
+      quantity: "",
+      otherMaterials: "",
+    }));
+
     try {
-      const response = await fetch(
-        `http://localhost:5009/api/textbook?courseNumber=${course.course_number}&term=${course.term}`
-      );
+      const response = await fetch(`http://localhost:5009/api/textbooks/${course_id}`);
       const data = await response.json();
-
-      // If existing textbook data is found, pre-fill the form
-      setFormData(
-        data.textbook || {
-          course_name: course.course_name,
-          course_number: course.course_number,
-          term: course.term,
-          date: new Date().toLocaleDateString(),
-          instructor: localStorage.getItem("instructorName") || "Instructor Name",
-          quantity: "",
-          publisher: "",
-          title: "",
-          author: "",
-          isbn: "",
-          edition: "",
-          other_materials: "",
-        }
-      );
+      if (response.ok && data.textbooks?.length > 0) {
+        const textbook = data.textbooks[0]; // Assuming one textbook per course
+        setFormData((prev) => ({
+          ...prev,
+          publisher: textbook.publisher || "",
+          title: textbook.title || "",
+          author: textbook.author || "",
+          isbn: textbook.isbn || "",
+          edition: textbook.edition || "",
+          quantity: textbook.quantity || "",
+          otherMaterials: textbook.other_materials || "",
+        }));
+      }
     } catch (err) {
-      console.error("Error fetching existing textbook:", err);
-      setFormData({
-        course_name: course.course_name,
-        course_number: course.course_number,
-        term: course.term,
-        date: new Date().toLocaleDateString(),
-        instructor: localStorage.getItem("instructorName") || "Instructor Name",
-        quantity: "",
-        publisher: "",
-        title: "",
-        author: "",
-        isbn: "",
-        edition: "",
-        other_materials: "",
-      });
+      console.error("Error fetching textbook:", err);
     }
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmitForm = async (e) => {
     e.preventDefault();
-    console.log("Submitting form data:", formData);
-
     try {
-      const response = await fetch("http://localhost:5009/api/submitForm", {
+      const response = await fetch("http://localhost:5009/api/textbooks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
-
+      const data = await response.json();
       if (response.ok) {
-        alert("Form submitted successfully!");
-        setFormCourse(null); // Close the form
+        alert("Textbook adoption form submitted successfully!");
       } else {
-        alert("Failed to submit the form. Please try again.");
+        alert(data.message || "Failed to submit form.");
       }
     } catch (err) {
       console.error("Error submitting form:", err);
-      alert("A network or server error occurred. Please try again later.");
+      alert("An error occurred while submitting the form.");
     }
   };
 
   return (
     <div>
-      <h1>Welcome to the Instructor Dashboard!</h1>
+      <h1>Instructor Dashboard</h1>
       {loading && <p>Loading courses...</p>}
-      {error && <p>{error}</p>}
+      {error && <p style={{ color: "red" }}>{error}</p>}
+
       {!loading && courses.length > 0 && (
         <div>
           <h2>Your Courses</h2>
           <ul>
             {courses.map((course) => (
-              <li key={course.course_number}>
-                {course.course_name} ({course.term})
-                <button onClick={() => handleCreateForm(course)}>Create/Edit Form</button>
+              <li key={course.course_id}>
+                {course.course_name} ({course.term}){" "}
+                <button onClick={() => handleFetchTextbook(course)}>Create/Edit Form</button>
               </li>
             ))}
           </ul>
         </div>
       )}
-      {!loading && courses.length === 0 && <p>No courses assigned to you.</p>}
 
-      {formCourse && (
-        <form onSubmit={handleSubmitForm} style={{ marginTop: "20px" }}>
-          <h3>Create/Edit Form for {formCourse.course_name}</h3>
-          <div>
-            <label>Course Name:</label>
-            <input type="text" value={formData.course_name} disabled />
-          </div>
-          <div>
-            <label>Course Number:</label>
-            <input type="text" value={formData.course_number} disabled />
-          </div>
-          <div>
-            <label>Term:</label>
-            <input type="text" value={formData.term} disabled />
-          </div>
-          <div>
-            <label>Date:</label>
-            <input type="text" value={formData.date} disabled />
-          </div>
-          <div>
-            <label>Instructor Signature:</label>
-            <input type="text" value={formData.instructor} disabled />
-          </div>
-          <div>
-            <label>Quantity:</label>
-            <input type="number" name="quantity" value={formData.quantity} onChange={handleInputChange} required />
-          </div>
-          <div>
-            <label>Publisher:</label>
-            <input type="text" name="publisher" value={formData.publisher} onChange={handleInputChange} required />
-          </div>
-          <div>
-            <label>Textbook Title:</label>
-            <input type="text" name="title" value={formData.title} onChange={handleInputChange} required />
-          </div>
-          <div>
-            <label>Author:</label>
-            <input type="text" name="author" value={formData.author} onChange={handleInputChange} required />
-          </div>
-          <div>
-            <label>ISBN#:</label>
-            <input type="text" name="isbn" value={formData.isbn} onChange={handleInputChange} required />
-          </div>
-          <div>
-            <label>Edition:</label>
-            <input type="text" name="edition" value={formData.edition} onChange={handleInputChange} required />
-          </div>
-          <div>
-            <label>Other Materials:</label>
-            <textarea name="other_materials" value={formData.other_materials} onChange={handleInputChange} />
-          </div>
-          <button type="submit">Submit</button>
-          <button type="button" onClick={() => setFormCourse(null)} style={{ marginLeft: "10px" }}>
-            Cancel
-          </button>
-        </form>
+      {selectedCourse && (
+        <div>
+          <h2>Textbook Adoption Form</h2>
+          <form onSubmit={handleSubmitForm}>
+  <label>
+    Term:
+    <input type="text" value={formData.term} readOnly />
+  </label>
+  <label>
+    Date:
+    <input type="text" value={formData.date} readOnly />
+  </label>
+  <label>
+    Course ID:
+    <input type="text" value={formData.courseId} readOnly />
+  </label>
+  <label>
+    Course Name:
+    <input type="text" value={formData.courseName} readOnly />
+  </label>
+  <label>
+    Publisher:
+    <input
+      type="text"
+      value={formData.publisher}
+      onChange={(e) => setFormData({ ...formData, publisher: e.target.value })}
+    />
+  </label>
+  <label>
+    Title:
+    <input
+      type="text"
+      value={formData.title}
+      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+    />
+  </label>
+  <label>
+    Author:
+    <input
+      type="text"
+      value={formData.author}
+      onChange={(e) => setFormData({ ...formData, author: e.target.value })}
+    />
+  </label>
+  <label>
+    ISBN:
+    <input
+      type="text"
+      value={formData.isbn}
+      onChange={(e) => setFormData({ ...formData, isbn: e.target.value })}
+    />
+  </label>
+  <label>
+    Edition:
+    <input
+      type="text"
+      value={formData.edition}
+      onChange={(e) => setFormData({ ...formData, edition: e.target.value })}
+    />
+  </label>
+  <label>
+    Quantity:
+    <input
+      type="number"
+      value={formData.quantity}
+      min="1"
+      onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+    />
+  </label>
+  <label>
+    Other Materials:
+    <textarea
+      value={formData.otherMaterials}
+      onChange={(e) => setFormData({ ...formData, otherMaterials: e.target.value })}
+    />
+  </label>
+  <button type="submit">Submit</button>
+</form>
+        </div>
       )}
     </div>
   );
 };
 
-export default Instructor;
+export default InstructorPage;
