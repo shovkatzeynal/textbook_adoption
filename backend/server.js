@@ -10,6 +10,12 @@ const app = express();
 app.use(express.json()); // Parse JSON requests
 app.use(cors()); // Allow cross-origin requests
 
+// Start the server
+const PORT = 5009; // Define the port you want to use
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});
+
 // Signup Route
 app.post("/api/signup", async (req, res) => {
   const { firstName, lastName, email, phone, role, password } = req.body;
