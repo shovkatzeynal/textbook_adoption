@@ -1,17 +1,26 @@
-const express = require("express"); // Import Express
-const bcrypt = require("bcrypt"); // Import bcrypt for password hashing
-const cors = require("cors"); // Import CORS middleware
-const db = require("./db"); // Import the database connection
+require("dotenv").config(); // Load environment variables
+const express = require("express");
+const bcrypt = require("bcrypt");
+const cors = require("cors");
+const db = require("./db");
+const rateLimit = require("express-rate-limit");
 
 // Initialize the app
 const app = express();
 
 // Middleware
-app.use(express.json()); // Parse JSON requests
-app.use(cors()); // Allow cross-origin requests
+app.use(express.json());
+app.use(cors());
+
+// Rate limiting middleware
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+});
+app.use(limiter);
 
 // Start the server
-const PORT = 5009; // Define the port you want to use
+const PORT = process.env.PORT || 5009;
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
@@ -21,10 +30,8 @@ app.post("/api/signup", async (req, res) => {
   const { firstName, lastName, email, phone, role, password } = req.body;
 
   try {
-    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Insert the user into the database
     const query = `
       INSERT INTO users (first_name, last_name, email, phone, role, password_hash)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -44,39 +51,59 @@ app.post("/api/signup", async (req, res) => {
 });
 
 // Login Route
+// Login Route
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body;
-  console.log("Received login request for email:", email); // Debugging log
+  console.log("Received login request for email:", email);
 
   try {
-    // Query the database for the user
     const query = "SELECT * FROM users WHERE email = ?";
     const [rows] = await db.execute(query, [email]);
-    console.log("Database query result:", rows); // Debugging log
 
     if (rows.length === 0) {
-      console.log("User not found in database."); // Debugging log
+      console.log("User not found in database.");
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
     const user = rows[0];
-    console.log("User from database:", user); // Debugging log
+    console.log("User from database:", user);
 
-    // Compare the provided password with the stored hash
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-    console.log("Password validation result:", isPasswordValid); // Debugging log
-
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    // If login is successful, return user details
+    // Include userId in the response
     res.status(200).json({
       message: "Login successful",
+      userId: user.user_id, // Include user_id in the response
       role: user.role,
     });
   } catch (error) {
     console.error("Error during login:", error);
     res.status(500).json({ message: "Server error. Please try again later." });
+  }
+});
+
+// Fetch courses for a specific instructor
+app.get("/api/courses", async (req, res) => {
+  const userId = req.query.userId;
+
+  try {
+    const query = `
+      SELECT course_number, course_name, term
+      FROM courses
+      WHERE instructor_id = ?
+    `;
+    const [rows] = await db.execute(query, [userId]);
+
+    if (rows.length === 0) {
+      return res.status(200).json({ message: "No courses assigned to you." });
+    }
+
+    res.status(200).json({ courses: rows });
+  } catch (error) {
+    console.error("Error fetching courses:", error);
+    res.status(500).json({ message: "Failed to fetch courses." });
   }
 });

@@ -10,30 +10,39 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Sending login request with email:", email, "password:", password); // Debugging log
-  
+    setIsLoading(true);
+    setError("");
+
     try {
       const response = await fetch("http://localhost:5009/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-  
+
       const result = await response.json();
-      console.log("Login response from server:", result); // Debugging log
-  
+      console.log("Login response from server:", result);
+
       if (response.ok) {
+        if (result.userId) {
+          // Store the userId in local storage
+          localStorage.setItem("userId", result.userId);
+          console.log("Stored userId in local storage:", result.userId);
+        }
+
         if (result.role === "Instructor") navigate("/instructor");
         else if (result.role === "HoD") navigate("/hod");
         else if (result.role === "Bookstore") navigate("/bookstore");
       } else {
-        alert(result.message || "Invalid email or password");
+        setError(result.message || "Invalid email or password");
       }
     } catch (error) {
       console.error("Error during login:", error);
-      alert("A network or server error occurred. Please try again later.");
+      setError("A network or server error occurred. Please try again later.");
+    } finally {
+      setIsLoading(false);
     }
-  };  
+  };
 
   return (
     <div className="login-container">
