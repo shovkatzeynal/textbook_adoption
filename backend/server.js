@@ -22,13 +22,16 @@ app.post("/api/signup", async (req, res) => {
   const { firstName, lastName, email, phone, role, password } = req.body;
 
   try {
+    // Generate a random 9-digit user ID
+    const userId = Math.floor(100000000 + Math.random() * 900000000);
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const query = `
-      INSERT INTO users (first_name, last_name, email, phone, role, password_hash)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO users (user_id, first_name, last_name, email, phone, role, password_hash)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
-    await db.execute(query, [firstName, lastName, email, phone, role, hashedPassword]);
+    await db.execute(query, [userId, firstName, lastName, email, phone, role, hashedPassword]);
 
     res.status(201).json({ message: "User created successfully!" });
   } catch (error) {
@@ -42,38 +45,38 @@ app.post("/api/signup", async (req, res) => {
   }
 });
 
+
 // Login Route
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body;
-  console.log("Received login request for email:", email);
 
   try {
     const query = "SELECT * FROM users WHERE email = ?";
     const [rows] = await db.execute(query, [email]);
 
     if (rows.length === 0) {
-      console.log("User not found in database.");
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
     const user = rows[0];
-    console.log("User from database:", user);
-
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
+    // Include role in the response
     res.status(200).json({
       message: "Login successful",
       userId: user.user_id,
-      role: user.role,
+      role: user.role, // Include user role
     });
   } catch (error) {
     console.error("Error during login:", error);
     res.status(500).json({ message: "Server error. Please try again later." });
   }
 });
+
 
 // Fetch courses for a specific instructor
 app.get("/api/courses", async (req, res) => {
@@ -179,5 +182,119 @@ app.get("/api/textbooks/:courseId", async (req, res) => {
   }
 });
 
+// *** Endpoint to Handle Form Submission ***
+app.post("/api/submit-form", async (req, res) => {
+  const {
+    courseId,
+    publisher,
+    title,
+    author,
+    isbn,
+    edition,
+    quantity,
+    otherMaterials,
+    requestedBy, // Instructor ID
+    approvedBy,  // HoD ID
+  } = req.body;
 
+  const db = require("./db"); // Ensure db is imported correctly
+
+  try {
+    // Insert or update textbook in the database
+    const textbookQuery = `
+      INSERT INTO textbooks (course_id, publisher, title, author, isbn, edition, quantity, other_materials, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending')
+      ON DUPLICATE KEY UPDATE
+        publisher = VALUES(publisher),
+        title = VALUES(title),
+        author = VALUES(author),
+        isbn = VALUES(isbn),
+        edition = VALUES(edition),
+        quantity = VALUES(quantity),
+        other_materials = VALUES(other_materials),
+        status = 'Pending';
+    `;
+    await db.execute(textbookQuery, [
+      courseId,
+      publisher,
+      title,
+      author,
+      isbn,
+      edition,
+      quantity,
+      otherMaterials,
+    ]);
+
+    // Insert request into the requests table
+    const requestQuery = `
+      INSERT INTO requests (course_id, textbook_id, requested_by, approved_by, status)
+      VALUES (?, (SELECT textbook_id FROM textbooks WHERE course_id = ?), ?, ?, 'Pending');
+    `;
+    await db.execute(requestQuery, [courseId, courseId, requestedBy, approvedBy]);
+
+    res.status(200).json({ message: "Form submitted to Head of Department successfully!" });
+  } catch (error) {
+    console.error("Error submitting form:", error);
+    res.status(500).json({ message: "Failed to submit form. Please try again later." });
+  }
+});
+
+
+//Fetch Forms for HoD
+//Add this endpoint to fetch forms submitted to the HoD
+
+app.get("/api/hod-forms", async (req, res) => {
+  const hodId = req.query.hodId; // Fetch hodId from query parameters
+  if (!hodId) {
+    return res.status(400).json({ message: "HoD ID is required" });
+  }
+
+  try {
+    const query = `
+      SELECT * FROM requests WHERE approved_by = ? AND status = 'Pending';
+    `;
+    const [rows] = await db.execute(query, [hodId]);
+    res.json({ forms: rows });
+  } catch (error) {
+    console.error("Error fetching forms:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+ //     approve form
+ app.patch("/api/approve-form/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const query = `
+      UPDATE requests
+      SET status = 'Approved'
+      WHERE request_id = ?
+    `;
+    await db.execute(query, [id]);
+    res.status(200).json({ message: "Form approved successfully!" });
+  } catch (err) {
+    console.error("Error approving form:", err);
+    res.status(500).json({ message: "Failed to approve the form." });
+  }
+});
+
+//    reject form
+app.patch("/api/reject-form/:id", async (req, res) => {
+  const { id } = req.params;
+  const { rejectionComments } = req.body;
+
+  try {
+    const query = `
+      UPDATE requests
+      SET status = 'Rejected', rejection_comments = ?
+      WHERE request_id = ?
+    `;
+    await db.execute(query, [rejectionComments, id]);
+    res.status(200).json({ message: "Form rejected successfully!" });
+  } catch (err) {
+    console.error("Error rejecting form:", err);
+    res.status(500).json({ message: "Failed to reject the form." });
+  }
+});
 

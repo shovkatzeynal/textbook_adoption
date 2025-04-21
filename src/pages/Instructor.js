@@ -88,25 +88,38 @@ const InstructorPage = () => {
     }
   };
 
-  const handleSubmitForm = async (e) => {
-    e.preventDefault();
+  const handleSubmitForm = async () => {
     try {
-      const response = await fetch("http://localhost:5009/api/textbooks", {
+      const response = await fetch("http://localhost:5009/api/submit-form", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          courseId: formData.courseId,
+          publisher: formData.publisher,
+          title: formData.title,
+          author: formData.author,
+          isbn: formData.isbn,
+          edition: formData.edition,
+          quantity: formData.quantity,
+          otherMaterials: formData.otherMaterials,
+          requestedBy: localStorage.getItem("userId"), // Instructor ID from localStorage
+          approvedBy: "12345", // Replace with actual HoD ID from your database
+        }),
       });
-      const data = await response.json();
+  
+      const result = await response.json();
+  
       if (response.ok) {
-        alert("Textbook adoption form submitted successfully!");
+        alert(result.message);
       } else {
-        alert(data.message || "Failed to submit form.");
+        alert(result.message || "Failed to submit the form.");
       }
     } catch (err) {
-      console.error("Error submitting form:", err);
-      alert("An error occurred while submitting the form.");
+      console.error("Error submitting the form:", err);
+      alert("Failed to submit the form.");
     }
   };
+  
 
   return (
     <div>

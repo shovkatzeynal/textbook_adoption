@@ -2,16 +2,15 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const Login = () => {
+
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
+console.log("Login component loaded!");
+  const handleLogin = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError("");
 
     try {
       const response = await fetch("http://localhost:5009/api/login", {
@@ -21,55 +20,65 @@ const Login = () => {
       });
 
       const result = await response.json();
-      console.log("Login response from server:", result);
 
       if (response.ok) {
-        if (result.userId) {
-          // Store the userId in local storage
-          localStorage.setItem("userId", result.userId);
-          console.log("Stored userId in local storage:", result.userId);
-        }
+        localStorage.setItem("userId", result.userId);
+        localStorage.setItem("role", result.role); // Store role in local storage
 
-        if (result.role === "Instructor") navigate("/instructor");
-        else if (result.role === "HoD") navigate("/hod");
-        else if (result.role === "Bookstore") navigate("/bookstore");
+        // Navigate based on role
+        switch (result.role) {
+          case "Instructor":
+            navigate("/instructor");
+            break;
+          case "Head of Department":
+            navigate("/hod");
+            break;
+          case "Bookstore":
+            navigate("/bookstore");
+            break;
+          default:
+            alert("Unknown role. Please contact admin.");
+        }
       } else {
-        setError(result.message || "Invalid email or password");
+        alert(result.message || "Login failed. Please try again.");
       }
     } catch (error) {
       console.error("Error during login:", error);
-      setError("A network or server error occurred. Please try again later.");
-    } finally {
-      setIsLoading(false);
+      alert("Login failed. Please check your network and try again.");
     }
   };
 
   return (
-    <div className="login-container">
-      <form className="login-form" onSubmit={handleSubmit}>
-        <h2>Login</h2>
-        {error && <div className="error-message">{error}</div>}
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit" disabled={isLoading}>
-          {isLoading ? "Logging in..." : "Login"}
-        </button>
-        <p>
-          Don't have an account? <a href="/signup">Sign up here</a>
-        </p>
+    <div>
+      <h1>Login</h1>
+      <form onSubmit={handleLogin}>
+        <label>
+          Email:
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </label>
+        <br />
+        <label>
+          Password:
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </label>
+        <br />
+        <button type="submit">Login</button>
       </form>
+      <div>
+        <p>Don't have an account?</p>
+        {/* Add navigation to the signup page */}
+        <button onClick={() => navigate("/signup")}>Sign Up</button>
+      </div>
     </div>
   );
 };
