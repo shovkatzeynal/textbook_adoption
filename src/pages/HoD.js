@@ -34,16 +34,18 @@ const HoD = () => {
         if (response.ok) {
           setForms(result.forms);
         } else {
-          console.error("Error fetching forms:", result.message);
+          setError(result.message || "Error fetching forms.");
         }
       } catch (error) {
         console.error("Error fetching forms:", error);
+        setError("Failed to load forms.");
+      } finally {
+        setLoading(false); // stopping loading
       }
     };
   
     fetchForms();
   }, []);
-  
 
   // Handle creating a form
   const handleCreateForm = async () => {
