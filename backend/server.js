@@ -9,7 +9,7 @@ const app = express();
 
 // Middleware
 app.use(express.json());
-app.use(cors());
+app.use(cors()); 
 
 // Start the server
 const PORT = process.env.PORT || 5009;
@@ -261,8 +261,8 @@ app.get("/api/hod-forms", async (req, res) => {
   }
 });
 
- //     approve form
- app.patch("/api/approve-form/:id", async (req, res) => {
+// Approve form - only needs the ID from URL
+app.patch("/api/approve-form/:id", async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -272,6 +272,7 @@ app.get("/api/hod-forms", async (req, res) => {
       WHERE request_id = ?
     `;
     await db.execute(query, [id]);
+
     res.status(200).json({ message: "Form approved successfully!" });
   } catch (err) {
     console.error("Error approving form:", err);
@@ -279,10 +280,14 @@ app.get("/api/hod-forms", async (req, res) => {
   }
 });
 
-//    reject form
+// Reject form - needs rejectionComments from body
 app.patch("/api/reject-form/:id", async (req, res) => {
   const { id } = req.params;
   const { rejectionComments } = req.body;
+
+  if (!rejectionComments || rejectionComments.trim() === "") {
+    return res.status(400).json({ message: "Rejection reason is required." });
+  }
 
   try {
     const query = `
@@ -291,10 +296,10 @@ app.patch("/api/reject-form/:id", async (req, res) => {
       WHERE request_id = ?
     `;
     await db.execute(query, [rejectionComments, id]);
+
     res.status(200).json({ message: "Form rejected successfully!" });
   } catch (err) {
     console.error("Error rejecting form:", err);
     res.status(500).json({ message: "Failed to reject the form." });
   }
 });
-
