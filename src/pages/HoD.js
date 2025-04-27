@@ -1,8 +1,5 @@
 import React, { useEffect, useState } from "react";
 
-const hodId = localStorage.getItem("userId"); // Assuming the HoD ID is stored in localStorage
-const response = await fetch(`http://localhost:5009/api/hod-forms?hodId=${hodId}`);
-
 const HoD = () => {
   const [forms, setForms] = useState([]); // Forms submitted by instructors
   const [formData, setFormData] = useState({
@@ -94,8 +91,6 @@ const HoD = () => {
     try {
       const response = await fetch(`http://localhost:5009/api/approve-form/${formId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ approvedBy: userId, status: "Approved" }),
       });
 
       const result = await response.json();
@@ -120,7 +115,7 @@ const HoD = () => {
       const response = await fetch(`http://localhost:5009/api/reject-form/${formId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rejectedBy: userId, status: "Rejected", rejectionComments }),
+        body: JSON.stringify({ rejectionComments }),
       });
 
       const result = await response.json();

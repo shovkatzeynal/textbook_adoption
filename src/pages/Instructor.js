@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom"; // Add this import
 
 const InstructorPage = () => {
   const [courses, setCourses] = useState([]);
@@ -18,6 +19,13 @@ const InstructorPage = () => {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const navigate = useNavigate(); // Initialize navigate
+
+  const handleLogout = () => {
+    localStorage.clear(); // Clear user info
+    navigate("/"); // Redirect to Login
+  };
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -50,7 +58,6 @@ const InstructorPage = () => {
     setSelectedCourse(course);
     const { course_id, course_name, term } = course;
 
-    // Pre-fill term, date, courseId, and courseName
     const today = new Date().toISOString().split("T")[0];
     setFormData((prev) => ({
       ...prev,
@@ -71,7 +78,7 @@ const InstructorPage = () => {
       const response = await fetch(`http://localhost:5009/api/textbooks/${course_id}`);
       const data = await response.json();
       if (response.ok && data.textbooks?.length > 0) {
-        const textbook = data.textbooks[0]; // Assuming one textbook per course
+        const textbook = data.textbooks[0];
         setFormData((prev) => ({
           ...prev,
           publisher: textbook.publisher || "",
@@ -88,7 +95,8 @@ const InstructorPage = () => {
     }
   };
 
-  const handleSubmitForm = async () => {
+  const handleSubmitForm = async (e) => {
+    e.preventDefault(); // Prevent page reload on submit
     try {
       const response = await fetch("http://localhost:5009/api/submit-form", {
         method: "POST",
@@ -102,15 +110,29 @@ const InstructorPage = () => {
           edition: formData.edition,
           quantity: formData.quantity,
           otherMaterials: formData.otherMaterials,
-          requestedBy: localStorage.getItem("userId"), // Instructor ID from localStorage
-          approvedBy: "12345", // Replace with actual HoD ID from your database
+          requestedBy: localStorage.getItem("userId"),
+          approvedBy: "12345", // placeholder
         }),
       });
-  
+
       const result = await response.json();
-  
+
       if (response.ok) {
         alert(result.message);
+        setSelectedCourse(null);
+        setFormData({
+          term: "",
+          date: "",
+          courseId: "",
+          courseName: "",
+          publisher: "",
+          title: "",
+          author: "",
+          isbn: "",
+          edition: "",
+          quantity: "",
+          otherMaterials: "",
+        });
       } else {
         alert(result.message || "Failed to submit the form.");
       }
@@ -119,11 +141,12 @@ const InstructorPage = () => {
       alert("Failed to submit the form.");
     }
   };
-  
 
   return (
     <div>
       <h1>Instructor Dashboard</h1>
+      <button onClick={handleLogout}>Logout</button> {/* Added Logout button */}
+
       {loading && <p>Loading courses...</p>}
       {error && <p style={{ color: "red" }}>{error}</p>}
 
@@ -145,80 +168,69 @@ const InstructorPage = () => {
         <div>
           <h2>Textbook Adoption Form</h2>
           <form onSubmit={handleSubmitForm}>
-  <label>
-    Term:
-    <input type="text" value={formData.term} readOnly />
-  </label>
-  <label>
-    Date:
-    <input type="text" value={formData.date} readOnly />
-  </label>
-  <label>
-    Course ID:
-    <input type="text" value={formData.courseId} readOnly />
-  </label>
-  <label>
-    Course Name:
-    <input type="text" value={formData.courseName} readOnly />
-  </label>
-  <label>
-    Publisher:
-    <input
-      type="text"
-      value={formData.publisher}
-      onChange={(e) => setFormData({ ...formData, publisher: e.target.value })}
-    />
-  </label>
-  <label>
-    Title:
-    <input
-      type="text"
-      value={formData.title}
-      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-    />
-  </label>
-  <label>
-    Author:
-    <input
-      type="text"
-      value={formData.author}
-      onChange={(e) => setFormData({ ...formData, author: e.target.value })}
-    />
-  </label>
-  <label>
-    ISBN:
-    <input
-      type="text"
-      value={formData.isbn}
-      onChange={(e) => setFormData({ ...formData, isbn: e.target.value })}
-    />
-  </label>
-  <label>
-    Edition:
-    <input
-      type="text"
-      value={formData.edition}
-      onChange={(e) => setFormData({ ...formData, edition: e.target.value })}
-    />
-  </label>
-  <label>
-    Quantity:
-    <input
-      type="number"
-      value={formData.quantity}
-      min="1"
-      onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-    />
-  </label>
-  <label>
-    Other Materials:
-    <textarea
-      value={formData.otherMaterials}
-      onChange={(e) => setFormData({ ...formData, otherMaterials: e.target.value })}
-    />
-  </label>
-  <button type="submit">Submit</button>
-</form>
+            <label>Term:
+              <input type="text" value={formData.term} readOnly />
+            </label>
+            <label>Date:
+              <input type="text" value={formData.date} readOnly />
+            </label>
+            <label>Course ID:
+              <input type="text" value={formData.courseId} readOnly />
+            </label>
+            <label>Course Name:
+              <input type="text" value={formData.courseName} readOnly />
+            </label>
+            <label>Publisher:
+              <input
+                type="text"
+                value={formData.publisher}
+                onChange={(e) => setFormData({ ...formData, publisher: e.target.value })}
+              />
+            </label>
+            <label>Title:
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              />
+            </label>
+            <label>Author:
+              <input
+                type="text"
+                value={formData.author}
+                onChange={(e) => setFormData({ ...formData, author: e.target.value })}
+              />
+            </label>
+            <label>ISBN:
+              <input
+                type="text"
+                value={formData.isbn}
+                onChange={(e) => setFormData({ ...formData, isbn: e.target.value })}
+              />
+            </label>
+            <label>Edition:
+              <input
+                type="text"
+                value={formData.edition}
+                onChange={(e) => setFormData({ ...formData, edition: e.target.value })}
+              />
+            </label>
+            <label>Quantity:
+              <input
+                type="number"
+                value={formData.quantity}
+                min="1"
+                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+              />
+            </label>
+            <label>Other Materials:
+              <textarea
+                value={formData.otherMaterials}
+                onChange={(e) => setFormData({ ...formData, otherMaterials: e.target.value })}
+              />
+            </label>
+            <button type="submit">Submit</button>
+          </form>
         </div>
       )}
     </div>
