@@ -1,14 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom"; // Add this import
+import { useNavigate } from "react-router-dom";
+import LogoutButton from "../components/LogoutButton"; // Assuming you created it
 
 const InstructorPage = () => {
   const [courses, setCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [formData, setFormData] = useState({
-    term: "",
-    date: "",
-    courseId: "",
-    courseName: "",
     publisher: "",
     title: "",
     author: "",
@@ -19,13 +16,12 @@ const InstructorPage = () => {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const navigate = useNavigate(); // Initialize navigate
+  const navigate = useNavigate();
+  const instructorName = localStorage.getItem("fullName") || "Instructor"; // Display full name
 
-  const handleLogout = () => {
-    localStorage.clear(); // Clear user info
-    navigate("/"); // Redirect to Login
-  };
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -56,31 +52,13 @@ const InstructorPage = () => {
 
   const handleFetchTextbook = async (course) => {
     setSelectedCourse(course);
-    const { course_id, course_name, term } = course;
-
-    const today = new Date().toISOString().split("T")[0];
-    setFormData((prev) => ({
-      ...prev,
-      term,
-      date: today,
-      courseId: course_id,
-      courseName: course_name,
-      publisher: "",
-      title: "",
-      author: "",
-      isbn: "",
-      edition: "",
-      quantity: "",
-      otherMaterials: "",
-    }));
 
     try {
-      const response = await fetch(`http://localhost:5009/api/textbooks/${course_id}`);
+      const response = await fetch(`http://localhost:5009/api/textbooks/${course.course_id}`);
       const data = await response.json();
       if (response.ok && data.textbooks?.length > 0) {
         const textbook = data.textbooks[0];
-        setFormData((prev) => ({
-          ...prev,
+        setFormData({
           publisher: textbook.publisher || "",
           title: textbook.title || "",
           author: textbook.author || "",
@@ -88,7 +66,17 @@ const InstructorPage = () => {
           edition: textbook.edition || "",
           quantity: textbook.quantity || "",
           otherMaterials: textbook.other_materials || "",
-        }));
+        });
+      } else {
+        setFormData({
+          publisher: "",
+          title: "",
+          author: "",
+          isbn: "",
+          edition: "",
+          quantity: "",
+          otherMaterials: "",
+        });
       }
     } catch (err) {
       console.error("Error fetching textbook:", err);
@@ -96,13 +84,16 @@ const InstructorPage = () => {
   };
 
   const handleSubmitForm = async (e) => {
-    e.preventDefault(); // Prevent page reload on submit
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitSuccess(false);
+
     try {
       const response = await fetch("http://localhost:5009/api/submit-form", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          courseId: formData.courseId,
+          courseId: selectedCourse.course_id,
           publisher: formData.publisher,
           title: formData.title,
           author: formData.author,
@@ -111,20 +102,16 @@ const InstructorPage = () => {
           quantity: formData.quantity,
           otherMaterials: formData.otherMaterials,
           requestedBy: localStorage.getItem("userId"),
-          approvedBy: "12345", // placeholder
+          approvedBy: "12345",
         }),
       });
 
       const result = await response.json();
 
       if (response.ok) {
-        alert(result.message);
+        setSubmitSuccess(true);
         setSelectedCourse(null);
         setFormData({
-          term: "",
-          date: "",
-          courseId: "",
-          courseName: "",
           publisher: "",
           title: "",
           author: "",
@@ -139,100 +126,146 @@ const InstructorPage = () => {
     } catch (err) {
       console.error("Error submitting the form:", err);
       alert("Failed to submit the form.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div>
-      <h1>Instructor Dashboard</h1>
-      <button onClick={handleLogout}>Logout</button> {/* Added Logout button */}
+    <div style={{ maxWidth: "900px", margin: "0 auto", padding: "20px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1>Here are your courses, {instructorName}.</h1>
+        <LogoutButton />
+      </div>
 
       {loading && <p>Loading courses...</p>}
       {error && <p style={{ color: "red" }}>{error}</p>}
 
       {!loading && courses.length > 0 && (
-        <div>
-          <h2>Your Courses</h2>
-          <ul>
+        <div style={{ marginBottom: "30px" }}>
+          <ul style={{ listStyle: "none", padding: 0 }}>
             {courses.map((course) => (
-              <li key={course.course_id}>
-                {course.course_name} ({course.term}){" "}
-                <button onClick={() => handleFetchTextbook(course)}>Create/Edit Form</button>
+              <li key={course.course_id} style={{ marginBottom: "10px" }}>
+                <button
+                  onClick={() => handleFetchTextbook(course)}
+                  style={{
+                    background: "#007bff",
+                    color: "white",
+                    border: "none",
+                    padding: "10px 20px",
+                    borderRadius: "5px",
+                    cursor: "pointer",
+                  }}
+                >
+                  {course.course_name} ({course.term})
+                </button>
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      {selectedCourse && (
-        <div>
-          <h2>Textbook Adoption Form</h2>
-          <form onSubmit={handleSubmitForm}>
-            <label>Term:
-              <input type="text" value={formData.term} readOnly />
-            </label>
-            <label>Date:
-              <input type="text" value={formData.date} readOnly />
-            </label>
-            <label>Course ID:
-              <input type="text" value={formData.courseId} readOnly />
-            </label>
-            <label>Course Name:
-              <input type="text" value={formData.courseName} readOnly />
-            </label>
-            <label>Publisher:
-              <input
-                type="text"
-                value={formData.publisher}
-                onChange={(e) => setFormData({ ...formData, publisher: e.target.value })}
-              />
-            </label>
-            <label>Title:
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              />
-            </label>
-            <label>Author:
-              <input
-                type="text"
-                value={formData.author}
-                onChange={(e) => setFormData({ ...formData, author: e.target.value })}
-              />
-            </label>
-            <label>ISBN:
-              <input
-                type="text"
-                value={formData.isbn}
-                onChange={(e) => setFormData({ ...formData, isbn: e.target.value })}
-              />
-            </label>
-            <label>Edition:
-              <input
-                type="text"
-                value={formData.edition}
-                onChange={(e) => setFormData({ ...formData, edition: e.target.value })}
-              />
-            </label>
-            <label>Quantity:
-              <input
-                type="number"
-                value={formData.quantity}
-                min="1"
-                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-              />
-            </label>
-            <label>Other Materials:
-              <textarea
-                value={formData.otherMaterials}
-                onChange={(e) => setFormData({ ...formData, otherMaterials: e.target.value })}
-              />
-            </label>
-            <button type="submit">Submit</button>
-          </form>
+{selectedCourse && (
+  <div style={{ border: "1px solid #ccc", padding: "20px", borderRadius: "10px", background: "#f9f9f9", marginTop: "30px" }}>
+    <h2>Textbook Adoption for {selectedCourse.course_name}</h2>
+
+    {submitSuccess && <p style={{ color: "green" }}>Form submitted successfully!</p>}
+
+    <form onSubmit={handleSubmitForm}>
+      {/* Display Fields */}
+      <div style={{ marginBottom: "20px" }}>
+        <strong>Course Name:</strong> {selectedCourse.course_name}<br />
+        <strong>Term:</strong> {selectedCourse.term}<br />
+        <strong>Date:</strong> {new Date().toISOString().split("T")[0]}
+      </div>
+
+      {/* Editable Fields */}
+      <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
+        {/* Left column */}
+        <div style={{ flex: "1" }}>
+          <label>Publisher:</label>
+          <input
+            type="text"
+            value={formData.publisher}
+            onChange={(e) => setFormData({ ...formData, publisher: e.target.value })}
+            style={{ width: "100%", marginBottom: "10px" }}
+          />
+
+          <label>Title:</label>
+          <input
+            type="text"
+            value={formData.title}
+            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            style={{ width: "100%", marginBottom: "10px" }}
+          />
+
+          <label>Author:</label>
+          <input
+            type="text"
+            value={formData.author}
+            onChange={(e) => setFormData({ ...formData, author: e.target.value })}
+            style={{ width: "100%", marginBottom: "10px" }}
+          />
         </div>
-      )}
+
+        {/* Right column */}
+        <div style={{ flex: "1" }}>
+          <label>Quantity:</label>
+          <input
+            type="number"
+            min="1"
+            value={formData.quantity}
+            onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+            style={{ width: "100%", marginBottom: "10px" }}
+          />
+
+          <label>ISBN:</label>
+          <input
+            type="text"
+            value={formData.isbn}
+            onChange={(e) => setFormData({ ...formData, isbn: e.target.value })}
+            style={{ width: "100%", marginBottom: "10px" }}
+          />
+
+          <label>Edition:</label>
+          <input
+            type="text"
+            value={formData.edition}
+            onChange={(e) => setFormData({ ...formData, edition: e.target.value })}
+            style={{ width: "100%", marginBottom: "10px" }}
+          />
+        </div>
+      </div>
+
+      {/* Full width Other Materials */}
+      <div style={{ marginTop: "20px" }}>
+        <label>Other Materials:</label>
+        <textarea
+          value={formData.otherMaterials}
+          onChange={(e) => setFormData({ ...formData, otherMaterials: e.target.value })}
+          style={{ width: "100%", height: "100px", marginTop: "5px" }}
+        />
+      </div>
+
+      {/* Submit Button */}
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        style={{
+          background: isSubmitting ? "#ccc" : "#28a745",
+          color: "white",
+          border: "none",
+          padding: "12px 20px",
+          marginTop: "20px",
+          borderRadius: "5px",
+          cursor: "pointer",
+        }}
+      >
+        {isSubmitting ? "Submitting..." : "Submit Form"}
+      </button>
+    </form>
+  </div>
+)}
     </div>
   );
 };

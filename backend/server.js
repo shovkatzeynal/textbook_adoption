@@ -59,6 +59,8 @@ app.post("/api/login", async (req, res) => {
     }
 
     const user = rows[0];
+    console.log(user); // debug
+
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
     if (!isPasswordValid) {
@@ -70,6 +72,8 @@ app.post("/api/login", async (req, res) => {
       message: "Login successful",
       userId: user.user_id,
       role: user.role, // Include user role
+      firstName: user.first_name, // Include the user name to display later on
+      lastName: user.last_name,  
     });
   } catch (error) {
     console.error("Error during login:", error);
