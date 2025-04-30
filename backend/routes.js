@@ -89,6 +89,27 @@ router.get("/api/courses", async (req, res) => {
   }
 });
 
+// Add a new course (Instructor or HoD)
+router.post("/api/add-course", async (req, res) => {
+  const { courseNumber, courseName, term, instructorId, hodId } = req.body;
+
+  if (!courseNumber || !courseName || !term || !instructorId || !hodId) {
+    return res.status(400).json({ message: "All fields are required." });
+  }
+
+  try {
+    const query = `
+      INSERT INTO courses (course_number, course_name, term, instructor_id, hod_id)
+      VALUES (?, ?, ?, ?, ?)
+    `;
+    await db.execute(query, [courseNumber, courseName, term, instructorId, hodId]);
+    res.status(201).json({ message: "Course added successfully!" });
+  } catch (error) {
+    console.error("Error adding course:", error);
+    res.status(500).json({ message: "Failed to add course." });
+  }
+});
+
 
 // Get textbook for a course
 router.get("/api/textbooks/:courseId", async (req, res) => {
@@ -165,6 +186,7 @@ router.post("/api/submit-form", async (req, res) => {
     quantity,
     otherMaterials,
     requestedBy,
+    approvedBy, // ✅ new: accept approvedBy if provided (for HoD self-approval)
   } = req.body;
 
   try {
@@ -209,9 +231,11 @@ router.post("/api/submit-form", async (req, res) => {
     const textbookId = textbookRows[0].textbook_id;
 
     // Step 4: Insert the request
+    // If HoD is submitting, use their userId as approvedBy (auto-approve)
+    // Otherwise use course's hod_id (for instructor-initiated requests)
     await db.execute(
       "INSERT INTO requests (course_id, textbook_id, requested_by, approved_by, status) VALUES (?, ?, ?, ?, 'Pending')",
-      [courseId, textbookId, requestedBy, hodId]
+      [courseId, textbookId, requestedBy, approvedBy || hodId]
     );
 
     res.status(200).json({ message: "Form submitted successfully!" });
@@ -223,6 +247,7 @@ router.post("/api/submit-form", async (req, res) => {
     });
   }
 });
+
 
 
 
@@ -327,5 +352,105 @@ router.patch("/api/reject-form/:id", async (req, res) => {
     res.status(500).json({ message: "Failed to reject form." });
   }
 });
+
+
+// ========== BOOKSTORE ROUTES ==========
+
+router.get("/api/bookstore/forms", async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        r.request_id,
+        r.created_at,
+        r.status,
+        t.title,
+        t.author,
+        t.publisher,
+        t.isbn,
+        t.edition,
+        t.quantity,
+        t.other_materials AS otherMaterials,
+        c.course_name,
+        c.term,
+        u.first_name,
+        u.last_name
+      FROM requests r
+      JOIN textbooks t ON r.textbook_id = t.textbook_id
+      JOIN courses c ON r.course_id = c.course_id
+      JOIN users u ON r.requested_by = u.user_id
+      WHERE (
+        r.status IN (
+          'Approved', 
+          'Ready to be ordered', 
+          'Ordered', 
+          'Arrived', 
+          'Ready to pick up', 
+          'Picked up'
+        )
+        OR r.requested_by = r.approved_by
+      )      
+    `;
+
+    const [results] = await db.execute(query);
+
+    const forms = results.map(row => ({
+      request_id: row.request_id,
+      created_at: row.created_at,
+      status: row.status,
+      title: row.title,
+      author: row.author,
+      publisher: row.publisher,
+      isbn: row.isbn,
+      edition: row.edition,
+      quantity: row.quantity,
+      otherMaterials: row.otherMaterials,
+      course_name: row.course_name,
+      term: row.term,
+      instructor_name: `${row.first_name} ${row.last_name}`
+    }));
+
+    console.log("[DEBUG] Bookstore fetched forms:", forms.length);
+    res.status(200).json({ forms });
+  } catch (error) {
+    console.error("Error fetching bookstore forms:", error);
+    res.status(500).json({ message: "Server error fetching bookstore forms." });
+  }
+});
+
+// Update request status (Bookstore dropdown)
+router.patch("/api/bookstore/forms/:id/update-status", async (req, res) => {
+  const { id } = req.params;
+  const { newStatus } = req.body;
+
+  console.log("[DEBUG] Incoming status update:", { id, newStatus });
+
+  try {
+    const [result] = await db.execute(
+      "UPDATE requests SET status = ? WHERE request_id = ?",
+      [newStatus, id]
+    );
+    console.log("[DEBUG] Update result:", result);
+    res.status(200).json({ message: "Status updated successfully" });
+  } catch (error) {
+    console.error("Error updating status:", error);
+    res.status(500).json({ message: "Failed to update status" });
+  }
+});
+
+
+// Delete a request (Bookstore double confirmation)
+router.delete("/api/bookstore/forms/:id/delete", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    await db.execute("DELETE FROM requests WHERE request_id = ?", [id]);
+    res.status(200).json({ message: "Request deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting request:", error);
+    res.status(500).json({ message: "Failed to delete request" });
+  }
+});
+
+
 
 module.exports = router;

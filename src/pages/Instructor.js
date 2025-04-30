@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import LogoutButton from "../components/LogoutButton";
+import AddCourseForm from "../components/AddCourseForm";
 
 const InstructorPage = () => {
   const [courses, setCourses] = useState([]);
@@ -19,10 +19,8 @@ const InstructorPage = () => {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const navigate = useNavigate();
   const instructorName = localStorage.getItem("fullName") || "Instructor";
 
-  // Facebook-style Steel Blue colors
   const colors = {
     steelBlue: "#4682B4",
     lightBlue: "#d0e7ff",
@@ -31,7 +29,7 @@ const InstructorPage = () => {
     darkText: "#1f2d3d"
   };
 
-  // Fetch instructor's courses on load
+  // Fetch courses on component mount
   useEffect(() => {
     const fetchCourses = async () => {
       const userId = localStorage.getItem("userId");
@@ -44,13 +42,15 @@ const InstructorPage = () => {
       try {
         const response = await fetch(`http://localhost:5009/api/courses?userId=${userId}`);
         const data = await response.json();
+        console.log("[DEBUG] Courses fetched:", data);
+
         if (response.ok && data.courses) {
           setCourses(data.courses);
         } else {
           setError(data.message || "Failed to fetch courses.");
         }
       } catch (err) {
-        console.error("Error fetching courses:", err);
+        console.error("[ERROR] Fetching courses:", err);
         setError(err.message || "Network error.");
       } finally {
         setLoading(false);
@@ -60,12 +60,16 @@ const InstructorPage = () => {
     fetchCourses();
   }, []);
 
+  // Fetch textbook data for a selected course
   const handleFetchTextbook = async (course) => {
     setSelectedCourse(course);
+    console.log("[DEBUG] Selected course:", course);
 
     try {
       const response = await fetch(`http://localhost:5009/api/textbooks/${course.course_id}`);
       const data = await response.json();
+      console.log("[DEBUG] Textbook fetched:", data);
+
       if (response.ok && data.course) {
         const textbook = data.course;
         setFormData({
@@ -78,7 +82,6 @@ const InstructorPage = () => {
           otherMaterials: textbook.other_materials || "",
         });
       } else {
-        // No textbook, clear fields
         setFormData({
           publisher: "",
           title: "",
@@ -90,18 +93,18 @@ const InstructorPage = () => {
         });
       }
     } catch (err) {
-      console.error("Error fetching textbook:", err);
+      console.error("[ERROR] Fetching textbook:", err);
     }
   };
 
+  // Submit textbook adoption form
   const handleSubmitForm = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitSuccess(false);
 
     try {
-      console.log("Submitting form with approvedBy (HoD ID):", selectedCourse.hod_id); // Debug log
-
+      console.log("[DEBUG] Submitting form:", formData);
       const response = await fetch("http://localhost:5009/api/submit-form", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -120,8 +123,7 @@ const InstructorPage = () => {
       });
 
       const result = await response.json();
-
-      console.log("Submission result:", result); // debug log
+      console.log("[DEBUG] Submission result:", result);
 
       if (response.ok) {
         setSubmitSuccess(true);
@@ -139,7 +141,7 @@ const InstructorPage = () => {
         alert(result.message || "Failed to submit the form.");
       }
     } catch (err) {
-      console.error("Error submitting the form:", err);
+      console.error("[ERROR] Submitting form:", err);
       alert("Error submitting the form.");
     } finally {
       setIsSubmitting(false);
@@ -153,6 +155,9 @@ const InstructorPage = () => {
         <h1 style={{ color: colors.white }}>Welcome, {instructorName}!</h1>
         <LogoutButton />
       </div>
+
+      {/* Add Course Section (HoD ID passed internally and hidden visually) */}
+      <AddCourseForm colors={colors} onCourseAdded={() => window.location.reload()} hideHodField />
 
       {/* Courses Section */}
       <div style={{ background: colors.paleBlue, padding: "20px", borderRadius: "10px", marginBottom: "30px" }}>
@@ -193,7 +198,6 @@ const InstructorPage = () => {
               <strong>Date:</strong> {new Date().toISOString().split("T")[0]}
             </div>
 
-            {/* Form Fields in Two Columns */}
             <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
               <div style={{ flex: "1" }}>
                 <label>Publisher:</label>
@@ -218,7 +222,6 @@ const InstructorPage = () => {
               </div>
             </div>
 
-            {/* Other Materials Field */}
             <label>Other Materials:</label>
             <textarea
               value={formData.otherMaterials}
@@ -226,7 +229,6 @@ const InstructorPage = () => {
               style={{ ...inputStyle(colors), height: "80px" }}
             />
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={isSubmitting}
