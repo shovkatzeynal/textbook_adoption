@@ -4,8 +4,6 @@
 - 📄 [Slides Presentation](https://www.canva.com/design/DAGi7ZeTm1c/mVnG26sxeCXtbX68FLs3YA/edit)
 - 📘 [Full Spec Sheet (Google Docs)](https://docs.google.com/document/d/1p_ne2BhTwww10c8rM2-mE_tNAN3_z3xgyJY8UoO-3oc/edit?tab=t.0)
 
-> Replace the above links with actual URLs when available.
-
 ---
 
 ## 🧾 About This Document
