@@ -1,3 +1,133 @@
+# 📚 Textbook Adoption Form Web Application
+
+## 🔗 Project Resources
+- 📄 [Slides Presentation](https://www.canva.com/design/DAGi7ZeTm1c/mVnG26sxeCXtbX68FLs3YA/edit)
+- 📘 [Full Spec Sheet (Google Docs)](https://docs.google.com/document/d/1p_ne2BhTwww10c8rM2-mE_tNAN3_z3xgyJY8UoO-3oc/edit?tab=t.0)
+
+> Replace the above links with actual URLs when available.
+
+---
+
+## 🧾 About This Document
+This is a project spec sheet — a simple document that explains what this app is for, how it works, what it includes, and what we plan to build later. It's written in a way that anyone, even without technical experience, can understand the project's purpose and how everything fits together.
+
+---
+
+## ❗ Problem Statement
+University textbook adoption is often a fragmented and inefficient process. Instructors submit textbook requests using paper forms, emails, or static systems, leading to lost submissions, delays in departmental approval, and bottlenecks in bookstore orders. There's a lack of transparency between instructors, department heads, and bookstore staff, which causes confusion and logistical delays.
+
+---
+
+## ✅ Project Summary
+This platform digitizes the textbook adoption process at **Mississippi Valley State University (MVSU)**. It allows:
+- Faculty to manage course textbooks and submit forms
+- Heads of Departments (HoDs) to approve or reject forms with comments
+- Bookstore staff to view approved forms and initiate orders
+
+Each role accesses a personalized dashboard. The app uses a **MySQL** backend and a **React + Node.js** stack.
+
+---
+
+## 👥 Core Users & Sample Profiles
+- **Instructor** – _Dr. Smith_, teaches Psychology 101 and submits textbook forms for review.
+- **Head of Department (HoD)** – _Dr. Garner_, oversees faculty submissions, can also submit forms.
+- **Bookstore Staff** – Can view only HoD-approved forms and initiate orders.
+
+---
+
+## 🎯 User Goals
+- Submit textbook forms digitally (no paper/email)
+- Receive quick and clear feedback from HoDs
+- Track submission status
+- Provide bookstore with verified, approved forms
+- Streamline textbook procurement
+
+---
+
+## 🔑 Key Features
+
+### P0 – Must Have
+- Instructor/HoD signup and login with role-based redirects
+- Assigned course view
+- Textbook form creation & submission
+- HoD approval/rejection with comments
+- Bookstore sees only approved forms
+- Role-based dashboards
+
+### P1 – Important
+- Manual course addition (Instructor, HoD)
+- View previous submissions
+- View rejection feedback
+- One-click order button for Bookstore
+
+### P2 – Future Plans
+- Notifications (e.g., form rejected)
+- Department structure (multiple HoDs)
+- Filter/search/sort in dashboards
+- Integration with registration system (e.g., Argawan Noori’s project)
+
+### ❌ Out of Scope
+- Cross-institution integration
+- Real-time collaborative editing
+- Analytics dashboards
+
+---
+
+## 🏗️ System Architecture & Tech Stack
+
+### Frontend
+- **React.js** – Interface
+- **React Router** – Navigation
+- **localStorage** – Temporary session storage
+
+### Backend
+- **Node.js + Express** – API and server
+
+### Database
+- **MySQL** – Data storage
+- **mysql2** – MySQL connector
+
+### Helpers & Security
+- **bcrypt** – Password hashing
+- **CORS + body-parser** – API communication
+- **express-rate-limit** – Rate-limiting for backend
+
+---
+
+## 🧪 UX Walkthrough
+- **Login/Signup**: Select role → Redirect to dashboard
+- **Instructor Dashboard**: View courses/forms, add/edit, view feedback
+- **HoD Dashboard**: View all departmental submissions, approve/reject, submit own forms
+- **Bookstore Page**: View approved forms, click to place orders
+
+---
+
+## 🔧 Engineering Breakdown
+
+| Feature                  | Description                                              |
+|--------------------------|----------------------------------------------------------|
+| Auth System              | Role-based login/signup, hashed passwords (bcrypt)       |
+| Instructor Dashboard     | Manage textbook forms, submit per course                 |
+| HoD Dashboard            | View, approve/reject instructor forms                    |
+| Bookstore Dashboard      | View only approved forms, initiate ordering              |
+| Course Assignment        | Auto/manual course management                            |
+| Rejection Feedback       | (Future) Attach and display comments on rejected forms   |
+| Database Schema          | Users, Courses, Forms, Departments (future feature)      |
+
+---
+
+## 🧱 Data Model Overview
+
+```sql
+users(user_id, name, email, role, department_id, ...)
+courses(course_id, name, instructor_id, department_id)
+forms(form_id, course_id, submitted_by, approved_by, status, feedback, ...)
+departments(department_id, name, hod_id) -- future
+
+
+
+
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
