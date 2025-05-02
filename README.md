@@ -12,7 +12,9 @@ This is a project spec sheet — a simple document that explains what this app i
 ---
 
 ## ❗ Problem Statement
-University textbook adoption is often a fragmented and inefficient process. Instructors submit textbook requests using paper forms, emails, or static systems, leading to lost submissions, delays in departmental approval, and bottlenecks in bookstore orders. There's a lack of transparency between instructors, department heads, and bookstore staff, which causes confusion and logistical delays.
+This project is a digital solution for simplifying how textbooks are requested and approved at Mississippi Valley State University (MVSU).
+
+It replaces slow, paper-based systems with an easy-to-use web application that works for instructors, department heads, and bookstore staff.
 
 ---
 
