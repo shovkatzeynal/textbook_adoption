@@ -1,5 +1,3 @@
-// src/components/LogoutButton.js
-
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -15,15 +13,23 @@ const LogoutButton = () => {
     <button
       onClick={handleLogout}
       style={{
-        padding: "8px 16px",
-        background: "#dc3545",
-        color: "white",
+        background: "#fff",
+        color: "#E56515",
         border: "none",
-        borderRadius: "5px",
+        borderRadius: "30px",
+        padding: "8px 22px",
+        fontSize: "12px",
+        fontWeight: 900,
+        letterSpacing: ".07em",
+        textTransform: "uppercase",
         cursor: "pointer",
+        fontFamily: "inherit",
+        transition: "background .15s",
       }}
+      onMouseEnter={(e) => e.target.style.background = "#FFF2E5"}
+      onMouseLeave={(e) => e.target.style.background = "#fff"}
     >
-      Logout
+      Log out
     </button>
   );
 };
