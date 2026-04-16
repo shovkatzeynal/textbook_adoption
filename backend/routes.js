@@ -78,8 +78,7 @@ router.get("/api/hods", async (req, res) => {
   }
 });
 
-// Get all courses for an instructor
-// In routes.js
+// Get all courses for an instructor / HoD
 router.get("/api/courses", async (req, res) => {
   const userId = req.query.userId;
 
@@ -119,7 +118,6 @@ router.post("/api/add-course", async (req, res) => {
   }
 });
 
-
 // Get textbook for a course
 router.get("/api/textbooks/:courseId", async (req, res) => {
   const courseId = req.params.courseId;
@@ -140,17 +138,17 @@ router.get("/api/textbooks/:courseId", async (req, res) => {
     }
 
     const data = {
-      course_id: rows[0].course_id,
-      course_number: rows[0].course_number || "",
-      course_name: rows[0].course_name || "",
-      term: rows[0].term || "Unknown Term",
-      publisher: rows[0].publisher || "",
-      title: rows[0].title || "",
-      author: rows[0].author || "",
-      isbn: rows[0].isbn || "",
-      edition: rows[0].edition || "",
-      quantity: rows[0].quantity || 1,
-      other_materials: rows[0].other_materials || "",
+      course_id:      rows[0].course_id,
+      course_number:  rows[0].course_number || "",
+      course_name:    rows[0].course_name || "",
+      term:           rows[0].term || "Unknown Term",
+      publisher:      rows[0].publisher || "",
+      title:          rows[0].title || "",
+      author:         rows[0].author || "",
+      isbn:           rows[0].isbn || "",
+      edition:        rows[0].edition || "",
+      quantity:       rows[0].quantity || 1,
+      other_materials:rows[0].other_materials || "",
     };
 
     res.status(200).json({ course: data });
@@ -180,10 +178,6 @@ router.post("/api/textbooks", async (req, res) => {
 
 // ========== FORM SUBMISSION AND APPROVAL ROUTES ==========
 
-// Instructor submit form
-// Find HoD id dynamically when instructor submits
-// ========== FORM SUBMISSION AND APPROVAL ROUTES ==========
-
 router.post("/api/submit-form", async (req, res) => {
   const {
     courseId,
@@ -195,11 +189,10 @@ router.post("/api/submit-form", async (req, res) => {
     quantity,
     otherMaterials,
     requestedBy,
-    approvedBy, // accept approvedBy if provided (for HoD self-approval)
+    approvedBy,
   } = req.body;
 
   try {
-    // Step 1: Get the Head of Department (HoD) for the course
     const [courseRows] = await db.execute(
       "SELECT hod_id FROM courses WHERE course_id = ?",
       [courseId]
@@ -211,7 +204,6 @@ router.post("/api/submit-form", async (req, res) => {
 
     const hodId = courseRows[0].hod_id;
 
-    // Step 2: Insert or update the textbook for the course
     await db.execute(
       `INSERT INTO textbooks (course_id, publisher, title, author, isbn, edition, quantity, other_materials, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending')
@@ -227,7 +219,6 @@ router.post("/api/submit-form", async (req, res) => {
       [courseId, publisher, title, author, isbn, edition, quantity, otherMaterials]
     );
 
-    // Step 3: Fetch the inserted/updated textbook_id
     const [textbookRows] = await db.execute(
       "SELECT textbook_id FROM textbooks WHERE course_id = ?",
       [courseId]
@@ -239,9 +230,6 @@ router.post("/api/submit-form", async (req, res) => {
 
     const textbookId = textbookRows[0].textbook_id;
 
-    // Step 4: Insert the request
-    // If HoD is submitting, use their userId as approvedBy (auto-approve)
-    // Otherwise use course's hod_id (for instructor-initiated requests)
     await db.execute(
       "INSERT INTO requests (course_id, textbook_id, requested_by, approved_by, status) VALUES (?, ?, ?, ?, 'Pending')",
       [courseId, textbookId, requestedBy, approvedBy || hodId]
@@ -250,18 +238,11 @@ router.post("/api/submit-form", async (req, res) => {
     res.status(200).json({ message: "Form submitted successfully!" });
   } catch (error) {
     console.error("Error submitting form:", error);
-    res.status(500).json({
-      message: "Failed to submit form.",
-      error: error.message,
-    });
+    res.status(500).json({ message: "Failed to submit form.", error: error.message });
   }
 });
 
-
-
-
-// HoD fetch pending forms
-// 
+// ── HoD: fetch ALL department forms (all statuses, filtered on frontend) ──
 router.get("/api/hod-forms", async (req, res) => {
   const { hodId } = req.query;
   console.log("Fetching HoD forms for:", hodId);
@@ -284,30 +265,31 @@ router.get("/api/hod-forms", async (req, res) => {
       u.last_name
     FROM requests r
     JOIN textbooks t ON r.textbook_id = t.textbook_id
-    JOIN courses c ON r.course_id = c.course_id
-    JOIN users u ON r.requested_by = u.user_id
-    WHERE r.status = 'Pending' AND r.approved_by = ?
+    JOIN courses c   ON r.course_id   = c.course_id
+    JOIN users u     ON r.requested_by = u.user_id
+    WHERE r.approved_by = ?
+      AND r.requested_by != r.approved_by
+    ORDER BY r.created_at DESC
   `;
 
   try {
     const [results] = await db.execute(sql, [hodId]);
-
-    console.log("Fetched forms count:", results.length);
+    console.log("Fetched dept forms count:", results.length);
 
     const forms = results.map(row => ({
-      request_id: row.request_id,
-      created_at: row.created_at,
-      status: row.status,
-      otherMaterials: row.otherMaterials,
-      title: row.title,
-      author: row.author,
-      publisher: row.publisher,
-      isbn: row.isbn,
-      edition: row.edition,
-      quantity: row.quantity,
-      course_name: row.course_name,
-      term: row.term,
-      instructor_name: `${row.first_name} ${row.last_name}`
+      request_id:      row.request_id,
+      created_at:      row.created_at,
+      status:          row.status,
+      otherMaterials:  row.otherMaterials,
+      title:           row.title,
+      author:          row.author,
+      publisher:       row.publisher,
+      isbn:            row.isbn,
+      edition:         row.edition,
+      quantity:        row.quantity,
+      course_name:     row.course_name,
+      term:            row.term,
+      instructor_name: `${row.first_name} ${row.last_name}`,
     }));
 
     res.json({ forms });
@@ -317,20 +299,12 @@ router.get("/api/hod-forms", async (req, res) => {
   }
 });
 
-
-
 // HoD approve form
 router.patch("/api/approve-form/:id", async (req, res) => {
   const { id } = req.params;
 
   try {
-    const query = `
-      UPDATE requests
-      SET status = 'Approved'
-      WHERE request_id = ?
-    `;
-    await db.execute(query, [id]);
-
+    await db.execute("UPDATE requests SET status = 'Approved' WHERE request_id = ?", [id]);
     res.status(200).json({ message: "Form approved successfully!" });
   } catch (error) {
     console.error("Error approving form:", error);
@@ -348,20 +322,16 @@ router.patch("/api/reject-form/:id", async (req, res) => {
   }
 
   try {
-    const query = `
-      UPDATE requests
-      SET status = 'Rejected', rejection_comments = ?
-      WHERE request_id = ?
-    `;
-    await db.execute(query, [rejectionComments, id]);
-
+    await db.execute(
+      "UPDATE requests SET status = 'Rejected', rejection_comments = ? WHERE request_id = ?",
+      [rejectionComments, id]
+    );
     res.status(200).json({ message: "Form rejected successfully!" });
   } catch (error) {
     console.error("Error rejecting form:", error);
     res.status(500).json({ message: "Failed to reject form." });
   }
 });
-
 
 // ========== BOOKSTORE ROUTES ==========
 
@@ -385,37 +355,37 @@ router.get("/api/bookstore/forms", async (req, res) => {
         u.last_name
       FROM requests r
       JOIN textbooks t ON r.textbook_id = t.textbook_id
-      JOIN courses c ON r.course_id = c.course_id
-      JOIN users u ON r.requested_by = u.user_id
+      JOIN courses c   ON r.course_id   = c.course_id
+      JOIN users u     ON r.requested_by = u.user_id
       WHERE (
         r.status IN (
-          'Approved', 
-          'Ready to be ordered', 
-          'Ordered', 
-          'Arrived', 
-          'Ready to pick up', 
+          'Approved',
+          'Ready to be ordered',
+          'Ordered',
+          'Arrived',
+          'Ready to pick up',
           'Picked up'
         )
         OR r.requested_by = r.approved_by
-      )      
+      )
     `;
 
     const [results] = await db.execute(query);
 
     const forms = results.map(row => ({
-      request_id: row.request_id,
-      created_at: row.created_at,
-      status: row.status,
-      title: row.title,
-      author: row.author,
-      publisher: row.publisher,
-      isbn: row.isbn,
-      edition: row.edition,
-      quantity: row.quantity,
-      otherMaterials: row.otherMaterials,
-      course_name: row.course_name,
-      term: row.term,
-      instructor_name: `${row.first_name} ${row.last_name}`
+      request_id:      row.request_id,
+      created_at:      row.created_at,
+      status:          row.status,
+      title:           row.title,
+      author:          row.author,
+      publisher:       row.publisher,
+      isbn:            row.isbn,
+      edition:         row.edition,
+      quantity:        row.quantity,
+      otherMaterials:  row.otherMaterials,
+      course_name:     row.course_name,
+      term:            row.term,
+      instructor_name: `${row.first_name} ${row.last_name}`,
     }));
 
     console.log("[DEBUG] Bookstore fetched forms:", forms.length);
@@ -446,7 +416,6 @@ router.patch("/api/bookstore/forms/:id/update-status", async (req, res) => {
   }
 });
 
-
 // Delete a request (Bookstore double confirmation)
 router.delete("/api/bookstore/forms/:id/delete", async (req, res) => {
   const { id } = req.params;
@@ -460,12 +429,8 @@ router.delete("/api/bookstore/forms/:id/delete", async (req, res) => {
   }
 });
 
-
-
-
 // ========== INSTRUCTOR SUBMISSIONS ROUTE ==========
 
-// Get all previously submitted forms for an instructor
 router.get("/api/instructor-submissions", async (req, res) => {
   const { userId } = req.query;
 
@@ -486,7 +451,7 @@ router.get("/api/instructor-submissions", async (req, res) => {
          t.author,
          t.publisher
        FROM requests r
-       JOIN courses c ON r.course_id = c.course_id
+       JOIN courses c  ON r.course_id   = c.course_id
        JOIN textbooks t ON r.textbook_id = t.textbook_id
        WHERE r.requested_by = ?
        ORDER BY r.created_at DESC`,
@@ -499,4 +464,5 @@ router.get("/api/instructor-submissions", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch submissions." });
   }
 });
+
 module.exports = router;
