@@ -65,6 +65,19 @@ router.post("/api/login", async (req, res) => {
 
 // ========== COURSE AND TEXTBOOK ROUTES ==========
 
+// Get all Heads of Department (for AddCourseForm dropdown)
+router.get("/api/hods", async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      "SELECT user_id, first_name, last_name FROM users WHERE role = 'Head of Department'"
+    );
+    res.status(200).json({ hods: rows });
+  } catch (error) {
+    console.error("Error fetching HoDs:", error);
+    res.status(500).json({ message: "Failed to fetch HoDs." });
+  }
+});
+
 // Get all courses for an instructor
 // In routes.js
 router.get("/api/courses", async (req, res) => {
@@ -77,10 +90,6 @@ router.get("/api/courses", async (req, res) => {
       WHERE instructor_id = ?
     `;
     const [rows] = await db.execute(query, [userId]);
-
-    if (rows.length === 0) {
-      return res.status(200).json({ message: "No courses assigned to you." });
-    }
 
     res.status(200).json({ courses: rows });
   } catch (error) {
@@ -186,7 +195,7 @@ router.post("/api/submit-form", async (req, res) => {
     quantity,
     otherMaterials,
     requestedBy,
-    approvedBy, // ✅ new: accept approvedBy if provided (for HoD self-approval)
+    approvedBy, // accept approvedBy if provided (for HoD self-approval)
   } = req.body;
 
   try {
@@ -453,4 +462,41 @@ router.delete("/api/bookstore/forms/:id/delete", async (req, res) => {
 
 
 
+
+// ========== INSTRUCTOR SUBMISSIONS ROUTE ==========
+
+// Get all previously submitted forms for an instructor
+router.get("/api/instructor-submissions", async (req, res) => {
+  const { userId } = req.query;
+
+  if (!userId) {
+    return res.status(400).json({ message: "User ID is required." });
+  }
+
+  try {
+    const [rows] = await db.execute(
+      `SELECT
+         r.request_id,
+         r.status,
+         r.created_at,
+         c.course_name,
+         c.course_number,
+         c.term,
+         t.title,
+         t.author,
+         t.publisher
+       FROM requests r
+       JOIN courses c ON r.course_id = c.course_id
+       JOIN textbooks t ON r.textbook_id = t.textbook_id
+       WHERE r.requested_by = ?
+       ORDER BY r.created_at DESC`,
+      [userId]
+    );
+
+    res.status(200).json({ submissions: rows });
+  } catch (error) {
+    console.error("Error fetching instructor submissions:", error);
+    res.status(500).json({ message: "Failed to fetch submissions." });
+  }
+});
 module.exports = router;
